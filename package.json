@@ -1,15 +1,12 @@
 {
   "name": "mio-bot",
   "version": "1.0.0",
-  "description": "",
   "main": "bot.js",
   "scripts": {
-  "start": "node bot.js"
-}
+    "start": "node bot.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "dependencies": {
+    "dotenv": "^17.0.0",
+    "node-telegram-bot-api": "^0.66.0"
+  }
 }
-
