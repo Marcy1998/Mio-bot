@@ -31,9 +31,17 @@ app.use(express.json());
 const bot = new TelegramBot(token, { webHook: true });
 
 const WEBHOOK_PATH = `/bot${token}`;
-bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
 
-console.log("WEBHOOK:", `${BASE_URL}${WEBHOOK_PATH}`);
+async function initWebhook() {
+  try {
+    await bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
+    console.log("WEBHOOK ATTIVO:", `${BASE_URL}${WEBHOOK_PATH}`);
+  } catch (err) {
+    console.log("ERRORE WEBHOOK:", err);
+  }
+}
+
+initWebhook();
 
 // --------------------
 // DATA STORAGE
@@ -89,7 +97,7 @@ function updateStreak(user) {
 // WEBHOOK TELEGRAM
 // --------------------
 
-app.post(WEBHOOK_PATH, (req, res) => {
+app.post(WEBHOOK_PATH, express.json(), (req, res) => {
   bot.processUpdate(req.body);
   res.sendStatus(200);
 });
