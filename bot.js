@@ -14,7 +14,7 @@ const ADMIN_ID = process.env.ADMIN_ID;
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// 🔴 CHECK ENV
+// 🔴 VALIDAZIONE ENV
 if (
   !token ||
   !BASE_URL ||
@@ -32,7 +32,7 @@ if (
 
 const app = express();
 
-// Stripe raw body SOLO webhook
+// ⚠️ STRIPE WEBHOOK (RAW BODY SOLO QUI)
 app.post(
   "/stripe-webhook",
   express.raw({ type: "application/json" })
@@ -42,7 +42,7 @@ app.post(
 app.use(express.json());
 
 // --------------------
-// BOT
+// BOT INIT
 // --------------------
 
 const bot = new TelegramBot(token, { webHook: true });
@@ -79,7 +79,7 @@ function saveData(data) {
 const userData = loadData();
 
 // --------------------
-// USER INIT
+// INIT USER
 // --------------------
 
 function initUser(chatId) {
@@ -185,7 +185,7 @@ bot.on("callback_query", async (query) => {
   updateStreak(userData[chatId]);
 
   // --------------------
-  // BUY
+  // BUY BUTTON
   // --------------------
 
   if (action === "BUY") {
@@ -295,7 +295,7 @@ bot.onText(/^\/premium (.+)$/, (msg, match) => {
 });
 
 // --------------------
-// STRIPE WEBHOOK (CORRETTO)
+// STRIPE WEBHOOK
 // --------------------
 
 app.post(
@@ -322,6 +322,7 @@ app.post(
       if (!telegramId) return res.sendStatus(200);
 
       initUser(telegramId);
+
       userData[telegramId].premium = true;
       saveData(userData);
 
@@ -333,7 +334,7 @@ app.post(
 );
 
 // --------------------
-// SERVER
+// SERVER START
 // --------------------
 
 const PORT = process.env.PORT || 3000;
