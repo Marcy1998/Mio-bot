@@ -1,7 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api");
 const express = require("express");
 const fs = require("fs");
-const Stripe = require("stripe");
 
 // --------------------
 // ENV
@@ -9,19 +8,10 @@ const Stripe = require("stripe");
 
 const token = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL;
-
 const GROUP_ID = -1003874325893;
 const ADMIN_ID = process.env.ADMIN_ID;
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-
-if (
-  !token ||
-  !BASE_URL ||
-  !process.env.STRIPE_SECRET_KEY ||
-  !process.env.STRIPE_PRICE_ID ||
-  !process.env.STRIPE_WEBHOOK_SECRET
-) {
+if (!token || !BASE_URL) {
   console.log("❌ ENV mancanti");
   process.exit(1);
 }
@@ -31,43 +21,6 @@ if (
 // --------------------
 
 const app = express();
-
-// ⚠️ STRIPE RAW BODY SOLO QUI
-app.post(
-  "/stripe-webhook",
-  express.raw({ type: "application/json" }),
-  (req, res) => {
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        req.headers["stripe-signature"],
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (err) {
-      console.log("Stripe webhook error:", err.message);
-      return res.sendStatus(400);
-    }
-
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const telegramId = session.metadata.telegram_id;
-
-      if (telegramId) {
-        initUser(telegramId);
-        userData[telegramId].premium = true;
-        saveData(userData);
-
-        bot.sendMessage(telegramId, "✅ Premium attivato.");
-      }
-    }
-
-    res.sendStatus(200);
-  }
-);
-
-// JSON per Telegram
 app.use(express.json());
 
 // --------------------
@@ -77,11 +30,9 @@ app.use(express.json());
 const bot = new TelegramBot(token, { webHook: true });
 
 const WEBHOOK_PATH = `/bot${token}`;
-const WEBHOOK_URL = `${BASE_URL}${WEBHOOK_PATH}`;
+bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
 
-bot.setWebHook(WEBHOOK_URL);
-
-console.log("✅ WEBHOOK ATTIVO SU:", WEBHOOK_URL);
+console.log("✅ WEBHOOK ATTIVO SU:", `${BASE_URL}${WEBHOOK_PATH}`);
 
 // --------------------
 // DATA STORAGE
@@ -93,18 +44,13 @@ function loadData() {
   try {
     if (!fs.existsSync(DATA_FILE)) return {};
     return JSON.parse(fs.readFileSync(DATA_FILE));
-  } catch (err) {
-    console.log("loadData error:", err);
+  } catch {
     return {};
   }
 }
 
 function saveData(data) {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  } catch (err) {
-    console.log("saveData error:", err);
-  }
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 const userData = loadData();
@@ -133,13 +79,13 @@ function updateStreak(user) {
   const today = new Date().toDateString();
 
   if (user.lastActive !== today) {
-    user.streak = (user.streak || 0) + 1;
+    user.streak += 1;
     user.lastActive = today;
   }
 }
 
 // --------------------
-// TELEGRAM WEBHOOK ROUTE
+// WEBHOOK TELEGRAM
 // --------------------
 
 app.post(WEBHOOK_PATH, (req, res) => {
@@ -151,7 +97,7 @@ app.post(WEBHOOK_PATH, (req, res) => {
 // START
 // --------------------
 
-bot.onText(/^\/start$/, (msg) => {
+bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
 
   initUser(chatId);
@@ -162,7 +108,7 @@ bot.onText(/^\/start$/, (msg) => {
       inline_keyboard: [
         [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
         [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
-        [{ text: "😍 HO VOGLIA DI MANGIARE", callback_data: "SMOKE" }],
+        [{ text: "🍟 HO VOGLIA DI MANGIARE", callback_data: "EAT" }],
         [{ text: "📊 STATS", callback_data: "STATS" }],
         [{ text: "💳 PREMIUM", callback_data: "BUY" }]
       ]
@@ -171,43 +117,10 @@ bot.onText(/^\/start$/, (msg) => {
 });
 
 // --------------------
-// BUY COMMAND
-// --------------------
-
-bot.onText(/^\/buy$/, async (msg) => {
-  const chatId = msg.chat.id;
-
-  initUser(chatId);
-
-  try {
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID,
-          quantity: 1
-        }
-      ],
-      success_url: `${BASE_URL}`,
-      cancel_url: `${BASE_URL}`,
-      metadata: {
-        telegram_id: String(chatId)
-      }
-    });
-
-    bot.sendMessage(chatId, `💳 Accedi al Premium:\n${session.url}`);
-  } catch (err) {
-    console.log("STRIPE ERROR:", err);
-    bot.sendMessage(chatId, "Errore pagamento.");
-  }
-});
-
-// --------------------
 // CALLBACKS
 // --------------------
 
-bot.on("callback_query", async (query) => {
+bot.on("callback_query", (query) => {
   if (!query.message) return;
 
   const chatId = query.message.chat.id;
@@ -216,56 +129,36 @@ bot.on("callback_query", async (query) => {
   initUser(chatId);
   updateStreak(userData[chatId]);
 
-  // BUY
-  if (action === "BUY") {
-    try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price: process.env.STRIPE_PRICE_ID,
-            quantity: 1
-          }
-        ],
-        success_url: `${BASE_URL}`,
-        cancel_url: `${BASE_URL}`,
-        metadata: {
-          telegram_id: String(chatId)
-        }
-      });
+  // --------------------
+  // PREMIUM CHECK
+  // --------------------
 
-      bot.sendMessage(chatId, `💳 Accedi al Premium:\n${session.url}`);
-    } catch (err) {
-      console.log(err);
-      bot.sendMessage(chatId, "Errore pagamento.");
-    }
-
-    bot.answerCallbackQuery(query.id);
-    return;
-  }
-
-  // PREMIUM BLOCK
   if (
     (action === "STATS" || action === "CRAVING") &&
     !userData[chatId].premium
   ) {
-    bot.sendMessage(chatId, "Funzione disponibile solo Premium.");
+    bot.sendMessage(chatId, "🔒 Funzione disponibile solo Premium.");
     bot.answerCallbackQuery(query.id);
     return;
   }
 
   let response = "";
 
+  // --------------------
   // CRAVING
+  // --------------------
+
   if (action === "CRAVING") {
     userData[chatId].cravings++;
     response = `🔥 Craving #${userData[chatId].cravings}\nRespira 60 secondi.`;
 
-    bot.sendMessage(GROUP_ID, "🧠 Craving evitato.");
+    bot.sendMessage(GROUP_ID, "🧠 Craving interrotto.");
   }
 
+  // --------------------
   // SMOKE
+  // --------------------
+
   if (action === "SMOKE") {
     userData[chatId].smokes++;
     response = `🚬 Sigaretta registrata\nTotale: ${userData[chatId].smokes}`;
@@ -273,10 +166,27 @@ bot.on("callback_query", async (query) => {
     bot.sendMessage(GROUP_ID, "🚬 Ricaduta registrata.");
   }
 
+  // --------------------
   // STATS
+  // --------------------
+
   if (action === "STATS") {
     response =
       `📊 STATISTICHE\n\n🔥 Craving: ${userData[chatId].cravings}\n🚬 Sigarette: ${userData[chatId].smokes}\n🏆 Streak: ${userData[chatId].streak}`;
+  }
+
+  // --------------------
+  // BUY (LINK PAGAMENTO)
+  // --------------------
+
+  if (action === "BUY") {
+    bot.sendMessage(
+      chatId,
+      "💳 Premium:\n\nPaga qui e poi verrai attivato:\nhttps://tuo-link-pagamento.com"
+    );
+
+    bot.answerCallbackQuery(query.id);
+    return;
   }
 
   saveData(userData);
@@ -289,7 +199,7 @@ bot.on("callback_query", async (query) => {
 // ADMIN PREMIUM
 // --------------------
 
-bot.onText(/^\/premium (.+)$/, (msg, match) => {
+bot.onText(/\/premium (.+)/, (msg, match) => {
   const chatId = msg.chat.id;
 
   if (String(chatId) !== String(ADMIN_ID)) {
@@ -301,13 +211,14 @@ bot.onText(/^\/premium (.+)$/, (msg, match) => {
 
   initUser(targetId);
   userData[targetId].premium = true;
+
   saveData(userData);
 
   bot.sendMessage(chatId, "Utente reso premium");
 });
 
 // --------------------
-// SERVER START
+// SERVER
 // --------------------
 
 const PORT = process.env.PORT || 3000;
