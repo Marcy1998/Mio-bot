@@ -9,12 +9,12 @@ const Stripe = require("stripe");
 
 const token = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL;
+
 const GROUP_ID = -1003874325893;
 const ADMIN_ID = process.env.ADMIN_ID;
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// 🔴 VALIDAZIONE ENV
 if (
   !token ||
   !BASE_URL ||
@@ -32,25 +32,56 @@ if (
 
 const app = express();
 
-// ⚠️ STRIPE WEBHOOK (RAW BODY SOLO QUI)
+// ⚠️ STRIPE RAW BODY SOLO QUI
 app.post(
   "/stripe-webhook",
-  express.raw({ type: "application/json" })
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        req.headers["stripe-signature"],
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err) {
+      console.log("Stripe webhook error:", err.message);
+      return res.sendStatus(400);
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      const telegramId = session.metadata.telegram_id;
+
+      if (telegramId) {
+        initUser(telegramId);
+        userData[telegramId].premium = true;
+        saveData(userData);
+
+        bot.sendMessage(telegramId, "✅ Premium attivato.");
+      }
+    }
+
+    res.sendStatus(200);
+  }
 );
 
 // JSON per Telegram
 app.use(express.json());
 
 // --------------------
-// BOT INIT
+// BOT
 // --------------------
 
 const bot = new TelegramBot(token, { webHook: true });
 
 const WEBHOOK_PATH = `/bot${token}`;
-bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
+const WEBHOOK_URL = `${BASE_URL}${WEBHOOK_PATH}`;
 
-console.log("✅ WEBHOOK ATTIVO SU:", `${BASE_URL}${WEBHOOK_PATH}`);
+bot.setWebHook(WEBHOOK_URL);
+
+console.log("✅ WEBHOOK ATTIVO SU:", WEBHOOK_URL);
 
 // --------------------
 // DATA STORAGE
@@ -79,7 +110,7 @@ function saveData(data) {
 const userData = loadData();
 
 // --------------------
-// INIT USER
+// USER INIT
 // --------------------
 
 function initUser(chatId) {
@@ -108,7 +139,7 @@ function updateStreak(user) {
 }
 
 // --------------------
-// TELEGRAM WEBHOOK
+// TELEGRAM WEBHOOK ROUTE
 // --------------------
 
 app.post(WEBHOOK_PATH, (req, res) => {
@@ -131,6 +162,7 @@ bot.onText(/^\/start$/, (msg) => {
       inline_keyboard: [
         [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
         [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
+        [{ text: "😍 HO VOGLIA DI MANGIARE", callback_data: "SMOKE" }],
         [{ text: "📊 STATS", callback_data: "STATS" }],
         [{ text: "💳 PREMIUM", callback_data: "BUY" }]
       ]
@@ -184,10 +216,7 @@ bot.on("callback_query", async (query) => {
   initUser(chatId);
   updateStreak(userData[chatId]);
 
-  // --------------------
-  // BUY BUTTON
-  // --------------------
-
+  // BUY
   if (action === "BUY") {
     try {
       const session = await stripe.checkout.sessions.create({
@@ -216,10 +245,7 @@ bot.on("callback_query", async (query) => {
     return;
   }
 
-  // --------------------
   // PREMIUM BLOCK
-  // --------------------
-
   if (
     (action === "STATS" || action === "CRAVING") &&
     !userData[chatId].premium
@@ -231,37 +257,23 @@ bot.on("callback_query", async (query) => {
 
   let response = "";
 
-  // --------------------
   // CRAVING
-  // --------------------
-
   if (action === "CRAVING") {
     userData[chatId].cravings++;
-
     response = `🔥 Craving #${userData[chatId].cravings}\nRespira 60 secondi.`;
 
-    bot.sendMessage(
-      GROUP_ID,
-      "🧠 Interrotto un craving prima della sigaretta."
-    );
+    bot.sendMessage(GROUP_ID, "🧠 Craving evitato.");
   }
 
-  // --------------------
   // SMOKE
-  // --------------------
-
   if (action === "SMOKE") {
     userData[chatId].smokes++;
-
     response = `🚬 Sigaretta registrata\nTotale: ${userData[chatId].smokes}`;
 
     bot.sendMessage(GROUP_ID, "🚬 Ricaduta registrata.");
   }
 
-  // --------------------
   // STATS
-  // --------------------
-
   if (action === "STATS") {
     response =
       `📊 STATISTICHE\n\n🔥 Craving: ${userData[chatId].cravings}\n🚬 Sigarette: ${userData[chatId].smokes}\n🏆 Streak: ${userData[chatId].streak}`;
@@ -293,45 +305,6 @@ bot.onText(/^\/premium (.+)$/, (msg, match) => {
 
   bot.sendMessage(chatId, "Utente reso premium");
 });
-
-// --------------------
-// STRIPE WEBHOOK
-// --------------------
-
-app.post(
-  "/stripe-webhook",
-  express.raw({ type: "application/json" }),
-  (req, res) => {
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        req.headers["stripe-signature"],
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (err) {
-      console.log("Webhook error:", err.message);
-      return res.sendStatus(400);
-    }
-
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const telegramId = session.metadata.telegram_id;
-
-      if (!telegramId) return res.sendStatus(200);
-
-      initUser(telegramId);
-
-      userData[telegramId].premium = true;
-      saveData(userData);
-
-      bot.sendMessage(telegramId, "✅ Premium attivato.");
-    }
-
-    res.sendStatus(200);
-  }
-);
 
 // --------------------
 // SERVER START
