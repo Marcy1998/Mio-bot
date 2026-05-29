@@ -1,45 +1,228 @@
 const TelegramBot = require("node-telegram-bot-api");
+const express = require("express");
+const fs = require("fs");
 
+// --------------------
+// ENV
+// --------------------
+
+require("dotenv").config();
 const token = process.env.BOT_TOKEN;
+const BASE_URL = process.env.BASE_URL;
+const GROUP_ID = -1003874325893;
+const ADMIN_ID = process.env.ADMIN_ID;
 
-if (!token) {
-  throw new Error("BOT_TOKEN non impostato");
+if (!token || !BASE_URL) {
+  console.log("❌ ENV mancanti");
+  process.exit(1);
 }
 
-const bot = new TelegramBot(token, { polling: true });
+// --------------------
+// APP
+// --------------------
 
-const userData = {};
+const app = express();
+app.use(express.json());
 
-function getResponse(text, chatId) {
-  const clean = String(text || "").trim().toUpperCase();
+// --------------------
+// BOT
+// --------------------
 
+const bot = new TelegramBot(token, { webHook: true });
+
+const WEBHOOK_PATH = `/bot${token}`;
+bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
+
+console.log("✅ WEBHOOK ATTIVO SU:", `${BASE_URL}${WEBHOOK_PATH}`);
+
+// --------------------
+// DATA STORAGE
+// --------------------
+
+const DATA_FILE = "./data.json";
+
+function loadData() {
+  try {
+    if (!fs.existsSync(DATA_FILE)) return {};
+    return JSON.parse(fs.readFileSync(DATA_FILE));
+  } catch {
+    return {};
+  }
+}
+
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+const userData = loadData();
+
+// --------------------
+// USER INIT
+// --------------------
+
+function initUser(chatId) {
   if (!userData[chatId]) {
-    userData[chatId] = { cravings: 0, smokes: 0 };
+    userData[chatId] = {
+      cravings: 0,
+      smokes: 0,
+      streak: 0,
+      lastActive: null,
+      premium: false
+    };
   }
-
-  if (clean === "CRAVING") {
-    userData[chatId].cravings++;
-    return `Craving #${userData[chatId].cravings}`;
-  }
-
-  if (clean === "HO FUMATO") {
-    userData[chatId].smokes++;
-    return `Sigarette oggi: ${userData[chatId].smokes}`;
-  }
-
-  return "Scrivi CRAVING o HO FUMATO";
 }
 
-bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(
-    msg.chat.id,
-    "Bot attivo. Scrivi CRAVING o HO FUMATO"
-  );
+// --------------------
+// STREAK
+// --------------------
+
+function updateStreak(user) {
+  const today = new Date().toDateString();
+
+  if (user.lastActive !== today) {
+    user.streak += 1;
+    user.lastActive = today;
+  }
+}
+
+// --------------------
+// WEBHOOK TELEGRAM
+// --------------------
+
+app.post(WEBHOOK_PATH, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
 
-bot.on("message", (msg) => {
-  if (!msg.text) return;
+// --------------------
+// START
+// --------------------
 
-  const reply = getResponse(msg.text, msg.chat.id);
-  bot.sendMessage(msg.chat.id, reply);
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+
+  initUser(chatId);
+  saveData(userData);
+
+  bot.sendMessage(chatId, "Benvenuto 👇", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
+        [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
+        [{ text: "📊 STATS", callback_data: "STATS" }],
+        [{ text: "💳 PREMIUM", callback_data: "BUY" }]
+      ]
+    }
+  });
+});
+
+// --------------------
+// CALLBACKS
+// --------------------
+
+bot.on("callback_query", (query) => {
+  if (!query.message) return;
+
+  const chatId = query.message.chat.id;
+  const action = query.data;
+
+  initUser(chatId);
+  updateStreak(userData[chatId]);
+
+  // --------------------
+  // PREMIUM CHECK
+  // --------------------
+
+  if (
+    (action === "STATS" || action === "CRAVING") &&
+    !userData[chatId].premium
+  ) {
+    bot.sendMessage(chatId, "🔒 Funzione disponibile solo Premium.");
+    bot.answerCallbackQuery(query.id);
+    return;
+  }
+
+  let response = "";
+
+  // --------------------
+  // CRAVING
+  // --------------------
+
+  if (action === "CRAVING") {
+    userData[chatId].cravings++;
+    response = `🔥 Craving #${userData[chatId].cravings}\nRespira 60 secondi.`;
+
+    bot.sendMessage(GROUP_ID, "🧠 Craving interrotto.");
+  }
+
+  // --------------------
+  // SMOKE
+  // --------------------
+
+  if (action === "SMOKE") {
+    userData[chatId].smokes++;
+    response = `🚬 Sigaretta registrata\nTotale: ${userData[chatId].smokes}`;
+
+    bot.sendMessage(GROUP_ID, "🚬 Ricaduta registrata.");
+  }
+
+  // --------------------
+  // STATS
+  // --------------------
+
+  if (action === "STATS") {
+    response =
+      `📊 STATISTICHE\n\n🔥 Craving: ${userData[chatId].cravings}\n🚬 Sigarette: ${userData[chatId].smokes}\n🏆 Streak: ${userData[chatId].streak}`;
+  }
+
+  // --------------------
+  // BUY (LINK PAGAMENTO)
+  // --------------------
+
+  if (action === "BUY") {
+    bot.sendMessage(
+      chatId,
+      "💳 Premium:\n\nPaga qui e poi verrai attivato:\nhttps://tuo-link-pagamento.com"
+    );
+
+    bot.answerCallbackQuery(query.id);
+    return;
+  }
+
+  saveData(userData);
+
+  bot.sendMessage(chatId, response);
+  bot.answerCallbackQuery(query.id);
+});
+
+// --------------------
+// ADMIN PREMIUM
+// --------------------
+
+bot.onText(/\/premium (.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+
+  if (String(chatId) !== String(ADMIN_ID)) {
+    bot.sendMessage(chatId, "Non autorizzato.");
+    return;
+  }
+
+  const targetId = match[1];
+
+  initUser(targetId);
+  userData[targetId].premium = true;
+
+  saveData(userData);
+
+  bot.sendMessage(chatId, "Utente reso premium");
+});
+
+// --------------------
+// SERVER
+// --------------------
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 SERVER ATTIVO SU PORTA ${PORT}`);
 });
