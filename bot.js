@@ -98,7 +98,10 @@ function updateStreak(user) {
 // --------------------
 
 app.post(WEBHOOK_PATH, express.json(), (req, res) => {
+  console.log("UPDATE ARRIVATO:", req.body);
+
   bot.processUpdate(req.body);
+
   res.sendStatus(200);
 });
 
