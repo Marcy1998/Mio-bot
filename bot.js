@@ -109,7 +109,6 @@ bot.onText(/\/start/, (msg) => {
       inline_keyboard: [
         [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
         [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
-        [{ text: "🍟 HO VOGLIA DI MANGIARE", callback_data: "EAT" }],
         [{ text: "📊 STATS", callback_data: "STATS" }],
         [{ text: "💳 PREMIUM", callback_data: "BUY" }]
       ]
