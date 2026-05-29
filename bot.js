@@ -127,6 +127,11 @@ bot.onText(/\/start/, (msg) => {
   });
 });
 
+bot.onText(/\/buy/, (msg) => {
+  const chatId = msg.chat.id;
+
+  bot.sendMessage(chatId, "💳 Link pagamento: https://tuo-link-pagamento.com");
+});
 // --------------------
 // CALLBACKS
 // --------------------
