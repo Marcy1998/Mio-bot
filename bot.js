@@ -298,9 +298,6 @@ bot.onText(/^\/premium (.+)$/, (msg, match) => {
 // STRIPE WEBHOOK
 // --------------------
 
-app.post(
-  "/stripe-webhook",
-  express.raw({ type: "application/json" }),
   (req, res) => {
     let event;
 
