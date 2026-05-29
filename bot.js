@@ -33,7 +33,7 @@ const bot = new TelegramBot(token, { webHook: true });
 const WEBHOOK_PATH = `/bot${token}`;
 bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
 
-console.log("✅ WEBHOOK ATTIVO SU:", `${BASE_URL}${WEBHOOK_PATH}`);
+console.log("WEBHOOK:", `${BASE_URL}${WEBHOOK_PATH}`);
 
 // --------------------
 // DATA STORAGE
