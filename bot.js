@@ -188,7 +188,7 @@ bot.on("callback_query", (query) => {
     bot.sendMessage(chatId, "✅ Hai già completato la missione oggi.");
     bot.answerCallbackQuery(query.id);
     return;
-  });
+  
 
   const mission =
     MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
