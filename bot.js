@@ -54,7 +54,13 @@ initWebhook();
 // --------------------
 
 const DATA_FILE = "./data.json";
-
+const MISSIONS = [
+  "Fai 10 minuti di camminata",
+  "Respira 3 minuti quando arriva craving",
+  "Bevi 1 bicchiere d’acqua e aspetta 5 minuti",
+  "Fai 15 squat",
+  "Scrivi perché vuoi smettere"
+];
 function loadData() {
   try {
     if (!fs.existsSync(DATA_FILE)) return {};
@@ -85,7 +91,7 @@ function initUser(chatId) {
       
       team: null,
 xp: 0,
-missionsCompleted: []
+ lastMissionDate: null
     };
   }
 }
@@ -148,11 +154,12 @@ Premi un pulsante per iniziare.`,
 {
   reply_markup: {
       inline_keyboard: [
-        [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
-        [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
-        [{ text: "📊 STATS", callback_data: "STATS" }],
-        [{ text: "💳 PREMIUM", callback_data: "BUY" }]
-      ]
+  [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
+  [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
+  [{ text: "🎯 MISSIONE", callback_data: "MISSION" }],
+  [{ text: "📊 STATS", callback_data: "STATS" }],
+  [{ text: "💳 PREMIUM", callback_data: "BUY" }]
+    ]
     }
   });
 });
@@ -174,6 +181,44 @@ bot.on("callback_query", (query) => {
 
   initUser(chatId);
   updateStreak(userData[chatId]);
+  if (action === "MISSION") {
+  const today = new Date().toDateString();
+
+  if (userData[chatId].lastMissionDate === today) {
+    bot.sendMessage(chatId, "✅ Hai già completato la missione oggi.");
+    bot.answerCallbackQuery(query.id);
+    return;
+  }
+
+  const mission =
+    MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
+
+  userData[chatId].lastMissionDate = today;
+
+  userData[chatId].xp += 10;
+
+  // 🟢 punti squadra (semplice: xp = team score)
+  const team = userData[chatId].team;
+
+  bot.sendMessage(
+    chatId,
+    `🎯 MISSIONE DEL GIORNO
+
+${mission}
+
++10 XP`
+  );
+
+  // invio al gruppo
+  bot.sendMessage(
+    GROUP_ID,
+    `🏆 ${team} ha completato una missione (+10 XP)`
+  );
+
+  saveData(userData);
+  bot.answerCallbackQuery(query.id);
+  return;
+}
 
   // --------------------
   // PREMIUM CHECK
@@ -218,7 +263,15 @@ bot.on("callback_query", (query) => {
 
   if (action === "STATS") {
     response =
-      `📊 STATISTICHE\n\n🔥 Craving: ${userData[chatId].cravings}\n🚬 Sigarette: ${userData[chatId].smokes}\n🏆 Streak: ${userData[chatId].streak}`;
+`📊 STATISTICHE
+
+🔥 Craving: ${userData[chatId].cravings}
+🚬 Sigarette: ${userData[chatId].smokes}
+🏆 Streak: ${userData[chatId].streak}
+
+👥 Team: ${userData[chatId].team}
+⭐ XP: ${userData[chatId].xp} ;
+
   }
 
   // --------------------
