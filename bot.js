@@ -162,7 +162,7 @@ Premi un pulsante per iniziare.`,
     ]
     }
   });
-});
+
 
 bot.onText(/\/buy/, (msg) => {
   const chatId = msg.chat.id;
