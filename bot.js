@@ -391,3 +391,4 @@ bot.onText(/\/team/, (msg) => {
       (userData[chatId].team || "Non assegnata")
   );
 });
+}
