@@ -188,7 +188,7 @@ bot.on("callback_query", (query) => {
     bot.sendMessage(chatId, "✅ Hai già completato la missione oggi.");
     bot.answerCallbackQuery(query.id);
     return;
-  }
+  });
 
   const mission =
     MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
@@ -261,8 +261,8 @@ ${mission}
   // STATS
   // --------------------
 
-  if (action === "STATS") {
-    response =
+ if (action === "STATS") {
+  response =
 `📊 STATISTICHE
 
 🔥 Craving: ${userData[chatId].cravings}
@@ -270,10 +270,8 @@ ${mission}
 🏆 Streak: ${userData[chatId].streak}
 
 👥 Team: ${userData[chatId].team}
-⭐ XP: ${userData[chatId].xp} ;
-
-  }
-
+⭐ XP: ${userData[chatId].xp}`;
+}
   // --------------------
   // BUY (LINK PAGAMENTO)
   // --------------------
@@ -323,7 +321,7 @@ bot.onText(/\/premium (.+)/, (msg, match) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-// console.log(SERVER AVVIATO SU PORTA:, PORT);
+  console.log(`SERVER AVVIATO SU PORTA ${PORT}`);
 });
 
 bot.onText(/\/team/, (msg) => {
