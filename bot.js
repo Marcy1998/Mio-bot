@@ -42,7 +42,8 @@ async function initWebhook() {
   try {
     await bot.setWebHook(`${BASE_URL}${WEBHOOK_PATH}`);
     console.log("WEBHOOK ATTIVO:", `${BASE_URL}${WEBHOOK_PATH}`);
-  } catch (err) {
+  }
+  catch (err) {
     console.log("ERRORE WEBHOOK:", err);
   }
 }
@@ -162,6 +163,7 @@ Premi un pulsante per iniziare.`,
     ]
     }
   });
+  });
 
 
 bot.onText(/\/buy/, (msg) => {
@@ -219,7 +221,8 @@ ${mission}
   bot.answerCallbackQuery(query.id);
   return;
 }
-
+});
+});
   // --------------------
   // PREMIUM CHECK
   // --------------------
