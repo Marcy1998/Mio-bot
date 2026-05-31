@@ -333,8 +333,8 @@ bot.onText(/\/team/, (msg) => {
 
   bot.sendMessage(
     chatId,
-    `🏆 La tua squadra è:
-
-${userData[chatId].team || "Non assegnata"}`
+    `response =
+"🏆 La tua squadra è:\n\n" +
+(userData[chatId].team || "Non assegnata");
   );
 });
