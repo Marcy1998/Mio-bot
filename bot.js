@@ -219,7 +219,7 @@ ${mission}
     bot.answerCallbackQuery(query.id);
     return;
   }
-});
+
   // --------------------
   // PREMIUM CHECK
   // --------------------
@@ -291,7 +291,7 @@ ${mission}
   bot.sendMessage(chatId, response);
   bot.answerCallbackQuery(query.id);
 
-
+});
 // --------------------
 // ADMIN PREMIUM
 // --------------------
