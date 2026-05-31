@@ -1,6 +1,7 @@
 const TelegramBot = require("node-telegram-bot-api");
 const express = require("express");
 const fs = require("fs");
+const paypal = require("@paypal/checkout-server-sdk");
 
 // --------------------
 // ENV
@@ -9,6 +10,9 @@ const fs = require("fs");
 require("dotenv").config();
 const token = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL;
+-----------------------
+// PAYPAL
+-----------------------
 const GROUP_ID = -1003874325893;
 const ADMIN_ID = process.env.ADMIN_ID;
 
@@ -22,7 +26,16 @@ if (!token || !BASE_URL) {
   console.log("❌ ENV mancanti");
   process.exit(1);
 }
+function environment() {
+  return new paypal.core.SandboxEnvironment(
+    process.env.PAYPAL_CLIENT_ID,
+    process.env.PAYPAL_SECRET
+  );
+}
 
+function client() {
+  return new paypal.core.PayPalHttpClient(environment());
+}
 // --------------------
 // APP
 // --------------------
@@ -175,7 +188,7 @@ bot.onText(/\/buy/, (msg) => {
 // CALLBACKS
 // --------------------
 
-bot.on("callback_query", (query) => {
+bot.on("callback_query", async (query) => {  
   if (!query.message) return;
 
   const chatId = query.message.chat.id;
@@ -277,20 +290,36 @@ ${mission}
   // --------------------
 
   if (action === "BUY") {
-    bot.sendMessage(
-      chatId,
-      "💳 Premium:\n\nPaga qui e poi verrai attivato:\nhttps://tuo-link-pagamento.com"
-    );
+  const request = new paypal.orders.OrdersCreateRequest();
 
-    bot.answerCallbackQuery(query.id);
-    return;
-  }
+  request.prefer("return=representation");
 
-  saveData(userData);
+  request.requestBody({
+    intent: "CAPTURE",
+    purchase_units: [
+      {
+        amount: {
+          currency_code: "EUR",
+          value: "4.99"
+        },
+        custom_id: String(chatId)
+      }
+    ]
+  });
 
-  bot.sendMessage(chatId, response);
+  const order = await client().execute(request);
+
+  const approvalUrl = order.result.links.find(
+    (l) => l.rel === "approve"
+  ).href;
+
+  bot.sendMessage(
+    chatId,
+    `💳 Attiva Premium:\n\n${approvalUrl}`
+  );
+
   bot.answerCallbackQuery(query.id);
-
+  return;
 });
 // --------------------
 // ADMIN PREMIUM
@@ -317,6 +346,28 @@ bot.onText(/\/premium (.+)/, (msg, match) => {
 // --------------------
 // SERVER
 // --------------------
+app.post("/paypal-webhook", express.json(), async (req, res) => {
+  const event = req.body;
+
+  if (event.event_type === "PAYMENT.CAPTURE.COMPLETED") {
+    const customId = event.resource.custom_id;
+
+    if (customId) {
+      initUser(customId);
+
+      userData[customId].premium = true;
+
+      saveData(userData);
+
+      await bot.sendMessage(
+        customId,
+        "✅ Pagamento ricevuto!\nPremium attivato."
+      );
+    }
+  }
+
+  res.sendStatus(200);
+});
 
 const PORT = process.env.PORT || 3000;
 
