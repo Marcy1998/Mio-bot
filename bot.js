@@ -323,16 +323,17 @@ bot.onText(/\/premium (.+)/, (msg, match) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-console.log("SERVER AVVIATO - PORTA:", PORT);
+// console.log(SERVER AVVIATO SU PORTA:, PORT);
 });
 
 bot.onText(/\/team/, (msg) => {
   const chatId = msg.chat.id;
 
   initUser(chatId);
-  
-bot.sendMessage(
-  chatId,
-  "🏆 La tua squadra è:\n\n" +
-  (userData[chatId].team || "Non assegnata")
-);
+
+  bot.sendMessage(
+    chatId,
+    "🏆 La tua squadra è:\n\n" +
+      (userData[chatId].team || "Non assegnata")
+  );
+});
