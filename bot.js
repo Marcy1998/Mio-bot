@@ -12,6 +12,12 @@ const BASE_URL = process.env.BASE_URL;
 const GROUP_ID = -1003874325893;
 const ADMIN_ID = process.env.ADMIN_ID;
 
+const TEAMS = [
+  "🔥 Phoenix",
+  "⚡ Spartan",
+  "🛡 Titan"
+];
+
 if (!token || !BASE_URL) {
   console.log("❌ ENV mancanti");
   process.exit(1);
@@ -75,7 +81,11 @@ function initUser(chatId) {
       smokes: 0,
       streak: 0,
       lastActive: null,
-      premium: false
+      premium: false,
+      
+      team: null,
+xp: 0,
+missionsCompleted: []
     };
   }
 }
@@ -113,10 +123,30 @@ bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
 
   initUser(chatId);
+  if (!userData[chatId].team) {
+  const teams = ["Alpha", "Beta", "Gamma"];
+
+  userData[chatId].team =
+    teams[Math.floor(Math.random() * teams.length)];
+}
+  if (!userData[chatId].team) {
+  const randomTeam =
+    TEAMS[Math.floor(Math.random() * TEAMS.length)];
+
+  userData[chatId].team = randomTeam;
+}
   saveData(userData);
 
-  bot.sendMessage(chatId, "Benvenuto 👇", {
-    reply_markup: {
+bot.sendMessage(
+  chatId,
+  `🚭 Benvenuto nella Challenge 30 Giorni
+
+🏆 Squadra assegnata:
+${userData[chatId].team}
+
+Premi un pulsante per iniziare.`,
+{
+  reply_markup: {
       inline_keyboard: [
         [{ text: "🔥 CRAVING", callback_data: "CRAVING" }],
         [{ text: "🚬 HO FUMATO", callback_data: "SMOKE" }],
@@ -241,4 +271,17 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`🚀 SERVER ATTIVO SU PORTA ${PORT}`);
+});
+
+bot.onText(/\/team/, (msg) => {
+  const chatId = msg.chat.id;
+
+  initUser(chatId);
+
+  bot.sendMessage(
+    chatId,
+    `🏆 La tua squadra è:
+
+${userData[chatId].team || "Non assegnata"}`
+  );
 });
