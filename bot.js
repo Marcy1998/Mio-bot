@@ -323,7 +323,7 @@ bot.onText(/\/premium (.+)/, (msg, match) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 SERVER ATTIVO SU PORTA ${PORT}`);
+console.log("SERVER AVVIATO - PORTA:", PORT);
 });
 
 bot.onText(/\/team/, (msg) => {
