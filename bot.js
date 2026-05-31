@@ -221,7 +221,7 @@ ${mission}
   bot.answerCallbackQuery(query.id);
   return;
 }
-});
+}
 });
   // --------------------
   // PREMIUM CHECK
