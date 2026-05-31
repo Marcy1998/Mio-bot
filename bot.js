@@ -8,11 +8,19 @@ const paypal = require("@paypal/checkout-server-sdk");
 // --------------------
 
 require("dotenv").config();
+
+const TelegramBot = require("node-telegram-bot-api");
+const express = require("express");
+const fs = require("fs");
+const paypal = require("@paypal/checkout-server-sdk");
+
 const token = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL;
------------------------
+
+// -----------------------
 // PAYPAL
------------------------
+// -----------------------
+
 const GROUP_ID = -1003874325893;
 const ADMIN_ID = process.env.ADMIN_ID;
 
@@ -26,6 +34,7 @@ if (!token || !BASE_URL) {
   console.log("❌ ENV mancanti");
   process.exit(1);
 }
+
 function environment() {
   return new paypal.core.SandboxEnvironment(
     process.env.PAYPAL_CLIENT_ID,
@@ -36,13 +45,13 @@ function environment() {
 function client() {
   return new paypal.core.PayPalHttpClient(environment());
 }
+
 // --------------------
 // APP
 // --------------------
 
 const app = express();
 app.use(express.json());
-
 // --------------------
 // BOT
 // --------------------
