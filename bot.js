@@ -390,4 +390,4 @@ bot.onText(/\/team/, (msg) => {
     "🏆 La tua squadra è:\n\n" +
       (userData[chatId].team || "Non assegnata")
   );
-}
+});
