@@ -9,11 +9,6 @@ const paypal = require("@paypal/checkout-server-sdk");
 
 require("dotenv").config();
 
-const TelegramBot = require("node-telegram-bot-api");
-const express = require("express");
-const fs = require("fs");
-const paypal = require("@paypal/checkout-server-sdk");
-
 const token = process.env.BOT_TOKEN;
 const BASE_URL = process.env.BASE_URL;
 
