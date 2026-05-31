@@ -324,7 +324,7 @@ ${mission}
 
   bot.answerCallbackQuery(query.id);
   return;
-});
+
 // --------------------
 // ADMIN PREMIUM
 // --------------------
