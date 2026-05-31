@@ -183,45 +183,42 @@ bot.on("callback_query", (query) => {
 
   initUser(chatId);
   updateStreak(userData[chatId]);
+
   if (action === "MISSION") {
-  const today = new Date().toDateString();
+    const today = new Date().toDateString();
 
-  if (userData[chatId].lastMissionDate === today) {
-    bot.sendMessage(chatId, "✅ Hai già completato la missione oggi.");
-    bot.answerCallbackQuery(query.id);
-    return;
-  
+    if (userData[chatId].lastMissionDate === today) {
+      bot.sendMessage(chatId, "✅ Hai già completato la missione oggi.");
+      bot.answerCallbackQuery(query.id);
+      return;
+    }
 
-  const mission =
-    MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
+    const mission =
+      MISSIONS[Math.floor(Math.random() * MISSIONS.length)];
 
-  userData[chatId].lastMissionDate = today;
+    userData[chatId].lastMissionDate = today;
+    userData[chatId].xp += 10;
 
-  userData[chatId].xp += 10;
+    const team = userData[chatId].team;
 
-  // 🟢 punti squadra (semplice: xp = team score)
-  const team = userData[chatId].team;
-
-  bot.sendMessage(
-    chatId,
-    `🎯 MISSIONE DEL GIORNO
+    bot.sendMessage(
+      chatId,
+      `🎯 MISSIONE DEL GIORNO
 
 ${mission}
 
 +10 XP`
-  );
+    );
 
-  // invio al gruppo
-  bot.sendMessage(
-    GROUP_ID,
-    `🏆 ${team} ha completato una missione (+10 XP)`
-  );
+    bot.sendMessage(
+      GROUP_ID,
+      `🏆 ${team} ha completato una missione (+10 XP)`
+    );
 
-  saveData(userData);
-  bot.answerCallbackQuery(query.id);
-  return;
-}
-}
+    saveData(userData);
+    bot.answerCallbackQuery(query.id);
+    return;
+  }
 });
   // --------------------
   // PREMIUM CHECK
