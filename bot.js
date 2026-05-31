@@ -290,7 +290,7 @@ ${mission}
 
   bot.sendMessage(chatId, response);
   bot.answerCallbackQuery(query.id);
-});
+
 
 // --------------------
 // ADMIN PREMIUM
